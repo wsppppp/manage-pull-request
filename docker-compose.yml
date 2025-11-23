@@ -1,0 +1,42 @@
+services:
+  # Сервис нашего Go-приложения
+  app:
+    build: .
+    container_name: pr_reviewer_app
+    ports:
+      - "8080:8080" # Пробрасываем порт 8080 из контейнера на хост-машину
+    depends_on:
+      - db # Приложение запустится только после того, как будет готов сервис базы данных
+    environment:
+      # Настройки для подключения к базе данных.
+      # Хост 'db' - это имя сервиса PostgreSQL в этой же сети Docker.
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=reviewer_user
+      - DB_PASSWORD=reviewer_password
+      - DB_NAME=reviewer_db
+      - DB_SSL_MODE=disable
+    restart: on-failure
+
+  # Сервис базы данных PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: pr_reviewer_db
+    environment:
+      - POSTGRES_USER=reviewer_user
+      - POSTGRES_PASSWORD=reviewer_password
+      - POSTGRES_DB=reviewer_db
+    ports:
+      - "5433:5432" # Пробрасываем порт БД на 5433, чтобы не конфликтовать с локальным PostgreSQL
+    volumes:
+      - db_data:/var/lib/postgresql/data # Сохраняем данные БД между перезапусками
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reviewer_user -d reviewer_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+# Docker Volume для персистентного хранения данных БД
+volumes:
+  db_data:
