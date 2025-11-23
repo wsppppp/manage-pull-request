@@ -2,7 +2,6 @@ package domain
 
 import "time"
 
-// PRStatus представляет статус Pull Request'а.
 type PRStatus string
 
 const (
@@ -10,7 +9,6 @@ const (
 	StatusMerged PRStatus = "MERGED"
 )
 
-// PullRequest представляет Pull Request в системе.
 type PullRequest struct {
 	ID                string     `json:"pull_request_id"`
 	Name              string     `json:"pull_request_name"`

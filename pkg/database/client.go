@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// NewClient создает и возвращает новый пул соединений к PostgreSQL.
+// NewClient создает и возвращает новый пул соединений к PostgreSQL
 func NewClient(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {

@@ -29,6 +29,7 @@ func (r *PgRepository) CreateTeam(ctx context.Context, team domain.Team) (domain
 	}
 	defer tx.Rollback(ctx)
 
+	// Создаем запись о команде.
 	_, err = tx.Exec(ctx, `INSERT INTO teams (team_name) VALUES ($1)`, team.Name)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -38,6 +39,7 @@ func (r *PgRepository) CreateTeam(ctx context.Context, team domain.Team) (domain
 		return domain.Team{}, err
 	}
 
+	// Добавляем или обновляем участников команды.
 	for _, member := range team.Members {
 		_, err = tx.Exec(ctx, `INSERT INTO users (user_id, username, is_active, team_name) VALUES ($1, $2, $3, $4)
                            ON CONFLICT (user_id) DO UPDATE SET username = $2, is_active = $3, team_name = $4`,
@@ -55,11 +57,10 @@ func (r *PgRepository) CreateTeam(ctx context.Context, team domain.Team) (domain
 
 func (r *PgRepository) GetTeamByName(ctx context.Context, teamName string) (domain.Team, error) {
 	team := domain.Team{Name: teamName}
+
+	// Находим всех участников указанной команды.
 	rows, err := r.db.Query(ctx, `SELECT user_id, username, is_active FROM users WHERE team_name = $1`, teamName)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Team{}, app.ErrNotFound
-		}
 		return domain.Team{}, err
 	}
 	defer rows.Close()
@@ -73,6 +74,7 @@ func (r *PgRepository) GetTeamByName(ctx context.Context, teamName string) (doma
 		team.Members = append(team.Members, user)
 	}
 
+	// Если не нашли участников, проверяем, существует ли хотя бы сама команда.
 	if len(team.Members) == 0 {
 		var exists bool
 		err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM teams WHERE team_name = $1)`, teamName).Scan(&exists)
@@ -89,10 +91,13 @@ func (r *PgRepository) GetTeamByName(ctx context.Context, teamName string) (doma
 
 func (r *PgRepository) SetUserActivity(ctx context.Context, userID string, isActive bool) (*domain.User, error) {
 	user := &domain.User{}
+
+	// Обновляем статус пользователя и возвращаем обновленную запись.
 	err := r.db.QueryRow(ctx,
 		`UPDATE users SET is_active = $1 WHERE user_id = $2 RETURNING user_id, username, is_active, team_name`,
 		isActive, userID,
 	).Scan(&user.ID, &user.Username, &user.IsActive, &user.TeamName)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, app.ErrUserNotFound
@@ -104,10 +109,13 @@ func (r *PgRepository) SetUserActivity(ctx context.Context, userID string, isAct
 
 func (r *PgRepository) GetUserByID(ctx context.Context, userID string) (*domain.User, error) {
 	user := &domain.User{}
+
+	// Находим пользователя по его ID.
 	err := r.db.QueryRow(ctx,
 		`SELECT user_id, username, is_active, team_name FROM users WHERE user_id = $1`,
 		userID,
 	).Scan(&user.ID, &user.Username, &user.IsActive, &user.TeamName)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, app.ErrUserNotFound
@@ -124,6 +132,7 @@ func (r *PgRepository) CreatePullRequest(ctx context.Context, pr domain.PullRequ
 	}
 	defer tx.Rollback(ctx)
 
+	// Создаем основную запись о Pull Request.
 	_, err = tx.Exec(ctx,
 		`INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, created_at)
          VALUES ($1, $2, $3, $4, $5)`,
@@ -137,6 +146,7 @@ func (r *PgRepository) CreatePullRequest(ctx context.Context, pr domain.PullRequ
 		return nil, err
 	}
 
+	// Привязываем ревьюеров к созданному PR.
 	for _, reviewerID := range pr.AssignedReviewers {
 		_, err := tx.Exec(ctx, `INSERT INTO pr_reviewers (pr_id, reviewer_id) VALUES ($1, $2)`, pr.ID, reviewerID)
 		if err != nil {
@@ -147,12 +157,13 @@ func (r *PgRepository) CreatePullRequest(ctx context.Context, pr domain.PullRequ
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-
 	return &pr, nil
 }
 
 func (r *PgRepository) GetPullRequestByID(ctx context.Context, prID string) (*domain.PullRequest, error) {
 	pr := &domain.PullRequest{}
+
+	// Получаем основную информацию о PR.
 	err := r.db.QueryRow(ctx,
 		`SELECT pull_request_id, pull_request_name, author_id, status, created_at, merged_at
 		 FROM pull_requests WHERE pull_request_id = $1`,
@@ -164,6 +175,7 @@ func (r *PgRepository) GetPullRequestByID(ctx context.Context, prID string) (*do
 		return nil, err
 	}
 
+	// Получаем список ID ревьюеров для этого PR.
 	rows, err := r.db.Query(ctx, `SELECT reviewer_id FROM pr_reviewers WHERE pr_id = $1`, prID)
 	if err != nil {
 		return nil, err
@@ -182,6 +194,7 @@ func (r *PgRepository) GetPullRequestByID(ctx context.Context, prID string) (*do
 }
 
 func (r *PgRepository) MergePullRequest(ctx context.Context, prID string) (*domain.PullRequest, error) {
+	// Обновляем статус PR и время слияния.
 	_, err := r.db.Exec(ctx,
 		`UPDATE pull_requests SET status = $1, merged_at = NOW() WHERE pull_request_id = $2`,
 		domain.StatusMerged, prID)
@@ -191,7 +204,6 @@ func (r *PgRepository) MergePullRequest(ctx context.Context, prID string) (*doma
 	return r.GetPullRequestByID(ctx, prID)
 }
 
-// UpdatePullRequestReviewers атомарно обновляет список ревьюеров для PR.
 func (r *PgRepository) UpdatePullRequestReviewers(ctx context.Context, prID string, reviewers []string) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -199,16 +211,15 @@ func (r *PgRepository) UpdatePullRequestReviewers(ctx context.Context, prID stri
 	}
 	defer tx.Rollback(ctx)
 
-	// 1. Удаляем всех текущих ревьюеров
+	// Удаляем всех текущих ревьюеров.
 	if _, err := tx.Exec(ctx, `DELETE FROM pr_reviewers WHERE pr_id = $1`, prID); err != nil {
 		return err
 	}
 
-	// 2. Вставляем новый список ревьюеров
+	// Вставляем новый список ревьюеров.
 	for _, reviewerID := range reviewers {
 		_, err := tx.Exec(ctx, `INSERT INTO pr_reviewers (pr_id, reviewer_id) VALUES ($1, $2)`, prID, reviewerID)
 		if err != nil {
-			// Может произойти, если ID ревьюера не существует (нарушение FK)
 			return err
 		}
 	}
@@ -216,9 +227,8 @@ func (r *PgRepository) UpdatePullRequestReviewers(ctx context.Context, prID stri
 	return tx.Commit(ctx)
 }
 
-// GetOpenPullRequestsByReviewer находит все ОТКРЫТЫЕ PR, где пользователь является ревьюером.
 func (r *PgRepository) GetOpenPullRequestsByReviewer(ctx context.Context, userID string) ([]*domain.PullRequest, error) {
-	// 1. Находим ID всех открытых PR, назначенных этому пользователю
+	// Находим ID всех открытых PR, назначенных этому пользователю.
 	rows, err := r.db.Query(ctx,
 		`SELECT pr.pull_request_id
 		 FROM pull_requests pr
@@ -242,14 +252,11 @@ func (r *PgRepository) GetOpenPullRequestsByReviewer(ctx context.Context, userID
 		return nil, rows.Err()
 	}
 
-	// 2. Для каждого найденного ID получаем полную информацию о PR
-	// Это не самый эффективный способ (N+1 запрос), но для простоты он подходит.
-	// В реальном приложении это можно было бы оптимизировать одним сложным запросом.
+	// Для каждого найденного ID получаем полную информацию о PR.
 	pullRequests := make([]*domain.PullRequest, 0, len(prIDs))
 	for _, id := range prIDs {
 		pr, err := r.GetPullRequestByID(ctx, id)
 		if err != nil {
-			// Пропускаем PR, если он был удален в процессе, но можно и вернуть ошибку
 			continue
 		}
 		pullRequests = append(pullRequests, pr)

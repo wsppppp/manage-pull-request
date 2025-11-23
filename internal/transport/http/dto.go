@@ -26,7 +26,7 @@ func toDomainTeam(dto TeamDTO) domain.Team {
 			ID:       m.UserID,
 			Username: m.Username,
 			IsActive: m.IsActive,
-			TeamName: dto.Name, // Присваиваем имя команды каждому участнику
+			TeamName: dto.Name,
 		}
 	}
 	return domain.Team{
@@ -102,7 +102,7 @@ type PullRequestDTO struct {
 }
 
 // fromDomainPR конвертирует доменную модель PullRequest (указатель) в DTO.
-func fromDomainPR(pr *domain.PullRequest) PullRequestDTO { // <--- Принимает указатель
+func fromDomainPR(pr *domain.PullRequest) PullRequestDTO {
 	if pr == nil {
 		return PullRequestDTO{}
 	}
@@ -120,4 +120,22 @@ func fromDomainPR(pr *domain.PullRequest) PullRequestDTO { // <--- Приним�
 // ReassignReviewerRequest - модель запроса для переназначения.
 type ReassignReviewerRequest struct {
 	PullRequestID string `json:"pull_request_id"`
+	OldReviewerID string `json:"old_reviewer_id"`
+}
+
+// PullRequestShortDTO - укороченная версия для /users/getReview.
+type PullRequestShortDTO struct {
+	ID       string `json:"pull_request_id"`
+	Name     string `json:"pull_request_name"`
+	AuthorID string `json:"author_id"`
+	Status   string `json:"status"`
+}
+
+func fromDomainPRtoShort(pr *domain.PullRequest) PullRequestShortDTO {
+	return PullRequestShortDTO{
+		ID:       pr.ID,
+		Name:     pr.Name,
+		AuthorID: pr.AuthorID,
+		Status:   string(pr.Status),
+	}
 }

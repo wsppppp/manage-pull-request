@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// Config хранит конфигурацию приложения.
+// Config хранит конфигурацию
 type Config struct {
 	DBHost     string
 	DBPort     string
@@ -15,7 +15,6 @@ type Config struct {
 	DBSslMode  string
 }
 
-// NewFromEnv создает новую конфигурацию из переменных окружения.
 func NewFromEnv() Config {
 	return Config{
 		DBHost:     getEnv("DB_HOST", "localhost"),
@@ -27,13 +26,13 @@ func NewFromEnv() Config {
 	}
 }
 
-// DSN возвращает строку подключения для pgx (с пробелами).
+// DSN возвращает строку подключения для pgx
 func (c *Config) DSN() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSslMode)
 }
 
-// MigrationURL возвращает строку подключения в формате URL для библиотеки migrate.
+// MigrationURL возвращает строку подключения в формате URL для библиотеки migrate
 func (c *Config) MigrationURL() string {
 	// postgresql://user:password@host:port/dbname?sslmode=disable
 	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",

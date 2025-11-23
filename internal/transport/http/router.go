@@ -7,11 +7,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-// NewRouter настраивает и возвращает роутер.
+// NewRouter настраивает и возвращает роутер
 func (h *Handler) NewRouter() http.Handler {
 	r := chi.NewRouter()
 
-	// Подключаем middleware
+	// middleware
 	r.Use(middleware.RequestID) // Добавляет ID каждому запросу
 	r.Use(middleware.RealIP)    // Определяет реальный IP клиента
 	r.Use(middleware.Logger)    // Логирует запросы
@@ -30,14 +30,14 @@ func (h *Handler) NewRouter() http.Handler {
 		r.Get("/getReview", h.getReviews)
 	})
 
-	// Группа роутов для Pull Request'ов
+	// Группа роутов для pr
 	r.Route("/pullRequest", func(r chi.Router) {
 		r.Post("/create", h.createPullRequest)
 		r.Post("/reassign", h.reassignReviewer)
 		r.Post("/merge", h.mergePullRequest)
 	})
 
-	// Health-check эндпоинт
+	// хэлс-чек
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"status": "Service is running!"}`))
 	})

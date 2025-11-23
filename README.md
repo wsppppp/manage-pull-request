@@ -1,7 +1,9 @@
-1) Вопрос использования фреймворков... выбор между gin и chi...
+### Немного про решения
+1) Первым вопросом стал выбор подходящего архитектурного решения. Я решил в какой-то степени рискнуть и поработать с chi, до этого все проекты я делал с помощью gin. Я решил сделать ставку на гошную идеоматичность.
+2) Поскольку проект учебный и параметры базы данных не являются большой ценностью - для простоты проверки я вставил все параметры прям в докер-компоуз.
 
 
-Для запуска проекта на локальной машине вам понадобятся **Docker** и **Docker Compose**.
+## Для запуска проекта на локальной машине вам понадобятся **Docker** и **Docker Compose**.
 
 1.  **Клонируйте репозиторий:**
     ```bash
@@ -38,64 +40,3 @@
     ```bash
     docker-compose down -v
     ```
-
----
-
-
-# Шаг 1: Чистый старт (рекомендуется)
-docker-compose down -v && docker-compose up --build -d
-
-# --- Пауза в несколько секунд ---
-
-# Шаг 2: Создание команды
-curl --location 'http://localhost:8080/team/add' \
---header 'Content-Type: application/json' \
---data '{
-"name": "sre-team",
-"members": [
-{"user_id": "u1", "username": "Alice", "is_active": true},
-{"user_id": "u2", "username": "Bob", "is_active": true},
-{"user_id": "u3", "username": "Charlie", "is_active": true},
-{"user_id": "u4", "username": "Diana", "is_active": true}
-]
-}'
-
-# --- Пауза ---
-
-# Шаг 3: Создание Pull Request'а
-curl --location 'http://localhost:8080/pullRequest/create' \
---header 'Content-Type: application/json' \
---data '{
-"pull_request_id": "PR-42",
-"pull_request_name": "Refactor logging module",
-"author_id": "u1"
-}'
-
-# --- Пауза ---
-
-# Шаг 4: Проверка ревью для одного из назначенных (предположим, это u2)
-curl --location 'http://localhost:8080/users/getReview?user_id=u2'
-
-# --- Пауза ---
-
-# Шаг 5: Переназначение ревью с u2
-curl --location 'http://localhost:8080/pullRequest/reassign' \
---header 'Content-Type: application/json' \
---data '{
-"pull_request_id": "PR-42",
-"old_user_id": "u2"
-}'
-
-# --- Пауза ---
-
-# Шаг 6: Проверка, что у u4 появилось ревью
-curl --location 'http://localhost:8080/users/getReview?user_id=u4'
-
-# --- Пауза ---
-
-# Шаг 7: Мерж PR
-curl --location 'http://localhost:8080/pullRequest/merge' \
---header 'Content-Type: application/json' \
---data '{
-"pull_request_id": "PR-42"
-}'
